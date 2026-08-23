@@ -7,6 +7,7 @@ import {
 } from '@deepseek-ai/dsh-host-apiproxy/api'
 import type { ClientConnectionRpc } from '../rpc.ts'
 import { randomUuid } from './random-uuid.ts'
+import { desktopAuthorizationValue } from '../desktop-auth.ts'
 
 const INTERNAL_BASE = 'http://dsh.internal'
 const CHANNEL_PATTERN = /^\/[A-Za-z0-9._~-]+$/
@@ -18,9 +19,10 @@ export type RpcFetch = (input: URL, init: RequestInit) => Promise<Response>
 /**
  * Create the browser-backed generic RPC caller.
  * @param doFetch - transport override; defaults to the page's global fetch.
+ * @param accessToken - optional desktop launch token attached to each request.
  * @returns caller that owns request correlation and response-envelope validation.
  */
-export function createWebConnectionRpc(doFetch?: RpcFetch): ClientConnectionRpc {
+export function createWebConnectionRpc(doFetch?: RpcFetch, accessToken?: string): ClientConnectionRpc {
   const send: RpcFetch = doFetch ?? ((input, init) => globalThis.fetch(input, init))
   return {
     async call(channel, endpoint, payload, signal) {
@@ -36,7 +38,10 @@ export function createWebConnectionRpc(doFetch?: RpcFetch): ClientConnectionRpc 
         new URL(`${channel}/${endpoint}`, resolveBase()),
         {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: {
+            'content-type': 'application/json',
+            ...accessToken === undefined ? {} : { authorization: desktopAuthorizationValue(accessToken) },
+          },
           body: JSON.stringify(message),
           ...signal === undefined ? {} : { signal },
         },

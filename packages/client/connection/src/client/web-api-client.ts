@@ -5,14 +5,23 @@ import { AbstractApiClient } from './api.ts'
 import { hostFrameSchema, muxFrameSchema } from '@deepseek-ai/dsh-host-apiproxy/api/events.schema'
 import { serverRequestSchema } from '@deepseek-ai/dsh-host-apiproxy/api/rpc.schema'
 import { HOST_EVENTS_PATH, MUX_EVENTS_PATH } from '../api-path.ts'
+import {
+  desktopAuthorizationValue,
+  desktopWebSocketProtocol,
+} from '../desktop-auth.ts'
 
 type SocketItem<F> = { kind: 'frame'; envelope: RpcRequest<F> } | { kind: 'end' }
 type Parser<F> = { parse(value: unknown): F }
 
 /** Browser platform subclass: unary/respond use fetch; mux/host use downlink-only WebSockets. */
 export class WebApiClient extends AbstractApiClient {
+  /** @param accessToken - optional desktop launch token supplied by the shell. */
+  constructor(private readonly accessToken?: string) {
+    super()
+  }
+
   protected doFetch(input: URL, init?: RequestInit): Promise<Response> {
-    return globalThis.fetch(input, init)
+    return globalThis.fetch(input, this.withAuthorization(init))
   }
 
   protected override openMux(
@@ -39,7 +48,10 @@ export class WebApiClient extends AbstractApiClient {
   ): AsyncGenerator<RpcRequest<F>> {
     const url = new URL(path, this.resolveBase())
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-    const socket = new WebSocket(url)
+    const socket = new WebSocket(
+      url,
+      this.accessToken === undefined ? [] : [desktopWebSocketProtocol(this.accessToken)],
+    )
     const inbox: SocketItem<F>[] = []
     let wake: (() => void) | undefined
     const enqueue = (item: SocketItem<F>): void => {
@@ -87,5 +99,12 @@ export class WebApiClient extends AbstractApiClient {
       socket.removeEventListener('close', handleClose)
       handleAbort()
     }
+  }
+
+  private withAuthorization(init?: RequestInit): RequestInit {
+    if (this.accessToken === undefined) return init ?? {}
+    const headers = new Headers(init?.headers)
+    headers.set('authorization', desktopAuthorizationValue(this.accessToken))
+    return { ...init, headers }
   }
 }

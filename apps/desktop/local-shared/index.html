@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>DeepSeek Harness</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body data-state="loading">
+    <main class="shell" aria-live="polite">
+      <div class="mark" aria-hidden="true">
+        <span class="mark-core"></span>
+      </div>
+      <h1>DeepSeek Harness</h1>
+      <div class="status-line">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="status">正在启动</span>
+      </div>
+      <button id="logs" type="button">打开日志文件</button>
+    </main>
+    <script type="module" src="./loader.js"></script>
+  </body>
+</html>

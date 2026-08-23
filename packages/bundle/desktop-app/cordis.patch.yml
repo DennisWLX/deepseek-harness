@@ -1,0 +1,41 @@
+# The dsh-desktop-app bundle patch: native Tauri desktop mode over the Web
+# profile. It is the third profile layer, so it restates the rows it changes
+# without altering the Web profile's own defaults.
+#
+# Token transport:
+# - Tauri puts the launch token on the page global before navigation.
+# - HTTP API requests carry it as an Authorization bearer credential.
+# - WebSocket upgrades carry it as the dedicated `dsh-desktop-token.<token>`
+#   subprotocol, because the browser WebSocket API cannot set request headers.
+
+- insert:
+    # Publishes the validated token and fixed loopback/dynamic-port values.
+    - id: desktop-startup
+      name: '@deepseek-ai/dsh-desktop-app/startup'
+      inject: [cmdlineArgs]
+      config:
+        accessToken: !!js process.env.DSH_DESKTOP_ACCESS_TOKEN
+
+    # Replaces the Web surface prompt; the Web row below disables its own.
+    - id: desktop-app
+      name: '@deepseek-ai/dsh-desktop-app'
+      inject: [webServer, systemPrompt]
+
+- id: webserver
+  inject: [desktopRuntime]
+  config:
+    host: !!js ctx.desktopRuntime.host
+    port: !!js ctx.desktopRuntime.port
+
+- id: web-runtime
+  config:
+    openBrowser: false
+    printUrl: false
+    surfaceContext: false
+    trustedHosts: []
+
+- id: connection
+  inject: [webRuntime, desktopRuntime]
+  config:
+    trustedHosts: !!js ctx.webRuntime.trustedHosts
+    accessToken: !!js ctx.desktopRuntime.accessToken

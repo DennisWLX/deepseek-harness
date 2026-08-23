@@ -9,9 +9,15 @@ import type { RpcMessage } from '../src/client/api.ts'
 import { RpcId } from '../src/client/api.ts'
 import { FixtureApiClient } from '../src/client/fixture.ts'
 import { WebApiClient } from '../src/client/web-api-client.ts'
+import {
+  DESKTOP_ACCESS_TOKEN_GLOBAL,
+  desktopAuthorizationValue,
+  desktopWebSocketProtocol,
+} from '../src/desktop-auth.ts'
 
 type Win = { location?: { hostname: string; search: string; origin?: string } }
 type WebSocketGlobal = { WebSocket?: typeof WebSocket }
+type DesktopGlobal = Record<string, unknown>
 
 const originalWebSocket = globalThis.WebSocket
 const sockets: FakeWebSocket[] = []
@@ -23,11 +29,13 @@ class FakeWebSocket extends EventTarget {
   static readonly CLOSED = 3
 
   readonly url: string
+  readonly protocols: string | string[]
   readyState = FakeWebSocket.CONNECTING
 
-  constructor(url: string | URL) {
+  constructor(url: string | URL, protocols?: string | string[]) {
     super()
     this.url = String(url)
+    this.protocols = Array.isArray(protocols) ? protocols[0] ?? '' : protocols ?? ''
     sockets.push(this)
     queueMicrotask(() => {
       if (this.readyState !== FakeWebSocket.CONNECTING) return
@@ -48,9 +56,10 @@ class FakeWebSocket extends EventTarget {
 }
 
 afterEach(() => {
-  delete (globalThis as Win).location
+  Reflect.deleteProperty(globalThis, 'location')
+  Reflect.deleteProperty(globalThis, DESKTOP_ACCESS_TOKEN_GLOBAL)
   sockets.length = 0
-  if (originalWebSocket === undefined) delete (globalThis as WebSocketGlobal).WebSocket
+  if (originalWebSocket === undefined) Reflect.deleteProperty(globalThis, 'WebSocket')
   else globalThis.WebSocket = originalWebSocket
 })
 
@@ -265,6 +274,41 @@ describe('connection client apply', () => {
     await vi.waitFor(() => { expect(sockets[0]?.url).toBe('wss://harness.example/api/events.mux') })
     abort.abort()
     await expect(pending).resolves.toMatchObject({ done: true })
+  })
+
+  it('attaches the Tauri token to HTTP calls and both WebSocket subprotocols', async () => {
+    const token = 'T'.repeat(43)
+    ;(globalThis as DesktopGlobal)[DESKTOP_ACCESS_TOKEN_GLOBAL] = token
+    ;(globalThis as Win).location = {
+      hostname: '127.0.0.1', search: '', origin: 'http://127.0.0.1:4200',
+    }
+    ;(globalThis as WebSocketGlobal).WebSocket = FakeWebSocket as unknown as typeof WebSocket
+    const original = globalThis.fetch
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }))
+    const handle = await mount()
+    let abort: AbortController | undefined
+    try {
+      await (handle.api as WebApiClient).host.describe({}).catch(() => undefined)
+      expect(fetch).toHaveBeenCalled()
+      const call = fetch.mock.calls[0]
+      const init = call?.[1]
+      const headers = init && 'headers' in init ? init.headers : undefined
+      if (!(headers instanceof Headers)) throw new Error('missing fetch headers')
+      expect(headers.get('authorization')).toBe(desktopAuthorizationValue(token))
+
+      abort = new AbortController()
+      const mux = handle.api.events.mux({}, abort.signal)[Symbol.asyncIterator]()
+      const host = handle.api.events.host({}, abort.signal)[Symbol.asyncIterator]()
+      const pending = Promise.all([mux.next(), host.next()])
+      await vi.waitFor(() => { expect(sockets).toHaveLength(2) })
+      expect(sockets.every(socket => socket.protocols === desktopWebSocketProtocol(token))).toBe(true)
+      abort.abort()
+      await expect(pending).resolves.toEqual([{ done: true, value: undefined }, { done: true, value: undefined }])
+    } finally {
+      fetch.mockRestore()
+      globalThis.fetch = original
+      abort?.abort()
+    }
   })
 
   it('closes a WebSocket immediately when its signal was already aborted', async () => {

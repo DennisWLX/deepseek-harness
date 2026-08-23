@@ -1,0 +1,102 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  background: #111418;
+  color: #f3f6f8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(145deg, rgba(28, 102, 108, 0.22), transparent 38%),
+    #111418;
+}
+
+.shell {
+  width: min(420px, calc(100vw - 48px));
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.mark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.34);
+}
+
+.mark-core {
+  width: 30px;
+  height: 30px;
+  border: 4px solid #78dce8;
+  border-radius: 50%;
+  box-shadow: 0 0 0 8px rgba(120, 220, 232, 0.08);
+}
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #b8c1c7;
+  font-size: 14px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #57bdc8;
+  box-shadow: 0 0 0 5px rgba(87, 189, 200, 0.12);
+}
+
+body[data-state="fatal"] .status-dot {
+  background: #ef7b72;
+  box-shadow: 0 0 0 5px rgba(239, 123, 114, 0.12);
+}
+
+button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8edf0;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 2px solid #78dce8;
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}

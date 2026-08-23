@@ -6,6 +6,11 @@ import type {} from '@deepseek-ai/dsh-attachment'
 import type { WebRoute, WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
 import { toFetchHandler } from '@deepseek-ai/dsh-host-apiproxy'
 import { API_PATH, HOST_EVENTS_PATH, MUX_EVENTS_PATH } from './api-path.ts'
+import {
+  isDesktopHttpAuthorized,
+  isDesktopWebSocketAuthorized,
+} from './desktop-auth-host.ts'
+import { readDesktopAccessToken } from './desktop-auth.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority, isTrustedApiRequest } from './api-request-trust.ts'
 import { HostConnectionService } from './rpc-host.ts'
@@ -22,6 +27,10 @@ export type {
 export { HostConnectionService } from './rpc-host.ts'
 
 export { API_PATH, HOST_EVENTS_PATH, MUX_EVENTS_PATH } from './api-path.ts'
+export {
+  DESKTOP_ACCESS_TOKEN_ENV,
+  readDesktopAccessToken,
+} from './desktop-auth.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'client-connection'
@@ -59,11 +68,14 @@ export interface ConnectionConfig {
   trustedHosts?: string[]
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
+  /** Optional desktop launch token shared by authenticated HTTP and WebSocket requests. */
+  accessToken?: string
 }
 
 export const Config: z<ConnectionConfig> = z.object({
   trustedHosts: z.array(String).default([]),
   maxRequestBodyBytes: z.natural().min(1).default(DEFAULT_MAX_REQUEST_BODY_BYTES),
+  accessToken: z.string().min(0).max(256).default(''),
 })
 
 /**
@@ -131,11 +143,12 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
   // The Loader resolves schema defaults; hand-built test contexts may pass none.
   const trustedHosts = config?.trustedHosts ?? []
   const maxRequestBodyBytes = config?.maxRequestBodyBytes ?? DEFAULT_MAX_REQUEST_BODY_BYTES
+  const accessToken = readDesktopAccessToken(config?.accessToken === '' ? undefined : config?.accessToken)
   // Config boundary: a malformed entry fails the load loudly here rather than
   // silently authorizing its hostname prefix at request time.
   for (const entry of trustedHosts) assertTrustedAuthority(entry)
   if (ctx.get('apiProxy') !== undefined) assertImageBodyCapacity(ctx, maxRequestBodyBytes)
-  const connection = new HostConnectionService(ctx, trustedHosts)
+  const connection = new HostConnectionService(ctx, trustedHosts, accessToken)
   const fetchHandler = connection.createSharedFetchHandler(API_PATH, {
     async fetch(request) {
       const pathname = new URL(request.url).pathname
@@ -167,6 +180,11 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
         res.end('forbidden')
         return
       }
+      if (accessToken !== undefined && !isDesktopHttpAuthorized(req.headers, accessToken)) {
+        res.writeHead(403)
+        res.end('forbidden')
+        return
+      }
       await bridge(req, res, fetchHandler, maxRequestBodyBytes)
     },
   }
@@ -182,6 +200,10 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
         path,
         handler: (req, socket, head) => {
           if (!isTrustedApiRequest(req, trustedHosts)) {
+            rejectWebSocketUpgrade(socket)
+            return
+          }
+          if (accessToken !== undefined && !isDesktopWebSocketAuthorized(req.headers, accessToken)) {
             rejectWebSocketUpgrade(socket)
             return
           }

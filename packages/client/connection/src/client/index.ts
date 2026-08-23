@@ -10,6 +10,7 @@ import { FixtureApiClient } from './fixture.ts'
 import { WebApiClient } from './web-api-client.ts'
 import { createWebConnectionRpc, type RpcFetch } from './rpc.ts'
 import { isLoopbackHostname } from '../loopback-hostname.ts'
+import { desktopAccessTokenFromGlobal } from '../desktop-auth.ts'
 import type { ClientConnectionRpc } from '../rpc.ts'
 
 // ---- Contract re-exports (browser-safe apiproxy channels + core types) ----
@@ -111,8 +112,9 @@ export function apply(ctx: Context): void {
   const fixture = pageLocation !== undefined && new URLSearchParams(pageLocation.search).has('fixture')
   const fixtureClient = fixture ? new FixtureApiClient() : undefined
   const transport = (globalThis as ClientTransportGlobal).__DSH_TRANSPORT__
-  const api: IApiClient = fixtureClient ?? transport?.createApiClient() ?? new WebApiClient()
-  const rpc = fixtureClient?.rpc ?? createWebConnectionRpc(transport?.fetch)
+  const accessToken = desktopAccessTokenFromGlobal()
+  const api: IApiClient = fixtureClient ?? transport?.createApiClient() ?? new WebApiClient(accessToken)
+  const rpc = fixtureClient?.rpc ?? createWebConnectionRpc(transport?.fetch, accessToken)
   let started = false
   let description: HostDescription | undefined
   const descriptionListeners = new Set<() => void>()

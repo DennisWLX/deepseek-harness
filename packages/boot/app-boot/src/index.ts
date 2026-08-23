@@ -492,9 +492,16 @@ export async function mountRootInclude(
   ctx.loader.builtins.include = bareModuleBaseUrl === undefined
     ? Include
     : class HostResolvedRootInclude extends Include {
+      private readonly relativeBaseUrl = this.ctx.baseUrl
+
       override import(name: string, getOuterStack?: () => string[]): unknown {
         const specifier = isAbsolute(name) ? pathToFileURL(name).href : name
-        if (name.startsWith('.') || name.startsWith('cordis:')) return super.import(specifier, getOuterStack)
+        if (name.startsWith('.') || name.startsWith('cordis:')) {
+          const resolved = name.startsWith('cordis:')
+            ? specifier
+            : new URL(name, this.relativeBaseUrl).href
+          return super.import(resolved, getOuterStack)
+        }
         const internal = this.ctx.loader.internal
         /* v8 ignore next -- Node supplies the internal loader; this preserves the
            original diagnostic for hypothetical embedders without it. */
@@ -519,6 +526,10 @@ export async function mountRootInclude(
     id: 'include',
     name: 'cordis:include',
     config: includeConfig,
+  }
+  if (bareModuleBaseUrl !== undefined) {
+    ctx.loader.ctx.baseUrl = bareModuleBaseUrl
+    ctx.loader.root.ctx.baseUrl = bareModuleBaseUrl
   }
   const includeId = await ctx.loader.create(rootInclude)
   const loader = ctx.get('loader')
