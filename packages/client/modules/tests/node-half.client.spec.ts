@@ -55,6 +55,8 @@ function constructWithRoute(packageNames: string[]): { service: ClientModuleRegi
   const ctx = new Context()
   ctx.baseUrl = pathToFileURL(root!).href + '/'
   ctx.provide('loader', {
+    ctx: { baseUrl: ctx.baseUrl },
+    root: { ctx: { baseUrl: ctx.baseUrl } },
     *entries() {
       for (const packageName of packageNames) {
         yield { options: { name: packageName }, fiber: {}, disabled: false }
@@ -164,6 +166,49 @@ describe('HTML bootstrap facade', () => {
 })
 
 describe('client bundle activation', () => {
+  it('resolves bare and relative client packages from their owning anchors', () => {
+    const packageName = '@fixture/closed-runtime'
+    const relativeName = './local-client'
+    writeBuiltPackage(packageName, {})
+    const profileRoot = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-client-modules-profile-')))
+    const relativeRoot = join(profileRoot, relativeName.slice(2))
+    mkdirSync(join(relativeRoot, 'lib'), { recursive: true })
+    writeFileSync(join(relativeRoot, 'package.json'), JSON.stringify({
+      name: relativeName,
+      exports: {
+        './client': './lib/client.js',
+        './package.json': './package.json',
+      },
+      dsh: { client: { platform: 'web' } },
+    }))
+    writeFileSync(join(relativeRoot, 'lib', 'client.js'), 'module.exports = {}\n')
+    const ctx = new Context()
+    const profileBaseUrl = pathToFileURL(profileRoot).href + '/'
+    const runtimeBaseUrl = pathToFileURL(root!).href + '/'
+    ctx.baseUrl = profileBaseUrl
+    ctx.provide('loader', {
+      ctx: { baseUrl: profileBaseUrl },
+      root: { ctx: { baseUrl: runtimeBaseUrl } },
+      *entries() {
+        yield { options: { name: packageName }, fiber: {}, disabled: false }
+        yield { options: { name: relativeName }, fiber: {}, disabled: false }
+      },
+    })
+    const webServer: Pick<WebServer, 'port' | 'register' | 'tapIndex'> = {
+      port: 0,
+      register: () => () => {},
+      tapIndex: () => () => {},
+    }
+    ctx.provide('webServer', webServer as WebServer)
+
+    try {
+      expect(new ClientModuleRegistry(ctx).graph().entries.map(entry => entry.id))
+        .toEqual([packageName, relativeName])
+    } finally {
+      rmSync(profileRoot, { recursive: true, force: true })
+    }
+  })
+
   it('allows sibling dsh roles', () => {
     const currentName = '@fixture/current-client-field'
     const clientPath = writePackage(currentName, {

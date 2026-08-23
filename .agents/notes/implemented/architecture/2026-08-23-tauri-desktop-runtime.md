@@ -14,7 +14,7 @@ DeepSeek Harness ships a Web application backed by a Node process, but has no na
 
 The desktop application is a Tauri shell with a Node sidecar. Tauri owns window creation, navigation, external links, and process lifecycle. The sidecar is the existing profile runtime packaged with `@yao-pkg/pkg --sea` and exposes a dynamic loopback HTTP server. The shell opens the Web GUI at the sidecar URL only after receiving its NDJSON `ready` event; `fatal` and `shutdown` complete the control protocol. Tauri launches the sidecar with the workspace directory as its current directory and logs sidecar stdout/stderr to the application log directory.
 
-The sidecar runs the `desktop` profile: `@deepseek-ai/dsh-base`, `@deepseek-ai/dsh-web-app`, and `@deepseek-ai/dsh-desktop-app`. The desktop bundle pins the webserver to `127.0.0.1`, disables Web browser handoff, and replaces the Web surface prompt with the native-shell surface prompt. Profile and home `cordis.patch.yml` layers remain on the user's disk and are hot reloaded. Relative local plugin paths continue to resolve from the profile configuration; bare package names resolve from the packaged sidecar's node_modules tree. The desktop application does not run `pnpm` or install packages at runtime.
+The sidecar runs the `desktop` profile: `@deepseek-ai/dsh-base`, `@deepseek-ai/dsh-web-app`, and `@deepseek-ai/dsh-desktop-app`. The desktop bundle pins the webserver to `127.0.0.1`, disables Web browser handoff, and replaces the Web surface prompt with the native-shell surface prompt. Profile and home `cordis.patch.yml` layers remain on the user's disk and are hot reloaded. Relative local plugin paths continue to resolve from the profile configuration directory; bare package names resolve from the packaged sidecar's node_modules tree. `client-modules` and `typert-loader` use the Loader root context as the bare-package manifest anchor and the config-tree context for relative specifiers. The desktop application does not run `pnpm` or install packages at runtime.
 
 ### Transport authentication
 
@@ -26,7 +26,7 @@ Each launch generates a 32-byte random token encoded as 43 base64url characters.
 
 ## Testing
 
-Host and browser connection tests cover bearer parsing, constant-time comparison, WebSocket subprotocol parsing, and the client token attachment. Runtime tests cover the desktop bundle and control protocol. A built macOS sidecar smoke starts with a 43-character token, reports `ready`, accepts authenticated HTTP and WebSocket connections, and exits 0 after `shutdown`. The Tauri `.app` build launches the managed state, receives the sidecar `ready` event in its application log, and closes without stderr.
+Host and browser connection tests cover bearer parsing, constant-time comparison, WebSocket subprotocol parsing, and the client token attachment. Runtime tests cover the desktop bundle and control protocol. Regression tests for both manifest scanners place a resolvable runtime root beside an empty profile root and verify that bare packages compose or register. A built macOS sidecar smoke starts with a 43-character token, reports `ready`, accepts authenticated HTTP and WebSocket connections, and exits 0 after `shutdown`. Its HTML assertion requires a nonempty `__DSH_BOOT__` graph and the modules/runtime parser preloads. The Tauri `.app` build launches the managed state, receives the sidecar `ready` event in its application log, and closes without stderr.
 
 ## Alternatives considered
 

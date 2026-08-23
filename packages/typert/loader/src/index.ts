@@ -22,6 +22,10 @@
  * that do not use a `./typert` artifact (hand-written wire schemas,
  * tests, non-loader compositions).
  *
+ * Package-manifest resolution has two anchors: relative plugin specifiers
+ * resolve beside the config tree, while bare package names resolve from the
+ * Loader root (the installed host in a closed packaged runtime).
+ *
  * @module @deepseek-ai/dsh-typert-loader
  */
 
@@ -282,14 +286,17 @@ function requireStrictCodec(pkgName: string, value: unknown, subject: string): v
  * @param config - explicit package artifacts in addition to Loader entries.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
-  // Resolution anchor: the config tree's baseUrl (the cordis.yml directory,
-  // whose package declares every composed plugin as a dependency). This
-  // package's own URL would miss sibling packages under pnpm's isolated
-  // node_modules.
+  // Relative entries belong to the user's config tree; bare entries belong
+  // to the installed-host runtime that owns the complete in-box plugin set.
   if (ctx.baseUrl === undefined) {
     throw new Error('typert-loader: ctx.baseUrl is unset — the loader needs the config-tree anchor to resolve plugin packages')
   }
-  const require = createRequire(ctx.baseUrl)
+  const configRequire = createRequire(ctx.baseUrl)
+  const loaderBaseUrl = ctx.loader.root.ctx.baseUrl
+  if (loaderBaseUrl === undefined) {
+    throw new Error('typert-loader: loader root ctx.baseUrl is unset — bare package manifests need the installed-host anchor')
+  }
+  const loaderRequire = createRequire(loaderBaseUrl)
   const configured = new Set((config as ResolvedConfig).packages)
 
   // Registered contributions by entry name; the disposer withdraws the entry's registration.
@@ -317,11 +324,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     if (cached !== undefined) return cached
     let pkgPath: string
     try {
-      pkgPath = require.resolve(`${pkgName}/package.json`)
+      pkgPath = (
+        pkgName.startsWith('.') || pkgName.startsWith('cordis:')
+          ? configRequire
+          : loaderRequire
+      ).resolve(`${pkgName}/package.json`)
     } catch (cause) {
       if (configured.has(pkgName)) {
         throw new Error(
-          `typert-loader: configured package "${pkgName}" cannot be resolved from the config tree — add it to the composition package dependencies or remove it from packages`,
+          `typert-loader: configured package "${pkgName}" cannot be resolved from the config tree or installed host — add it to the composition package dependencies or remove it from packages`,
           { cause },
         )
       }

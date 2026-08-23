@@ -93,12 +93,15 @@ function invocationTypertSource(pkgName: string): string {
 }
 
 /** Boot a real Loader over a fixture root; plugin modules resolve from its node_modules. */
-async function boot(): Promise<Context> {
+async function boot(
+  profileBaseUrl: string = pathToFileURL(join(root as string, 'cordis.yml')).href,
+  runtimeBaseUrl: string = profileBaseUrl,
+): Promise<Context> {
   context = new Context()
-  context.baseUrl = pathToFileURL(join(root as string, 'cordis.yml')).href
+  context.baseUrl = profileBaseUrl
   await context.plugin(TypertRegistry)
   await context.plugin(Loader)
-  const fixtureRequire = createRequire(context.baseUrl)
+  const fixtureRequire = createRequire(runtimeBaseUrl)
   context.loader.internal = {
     version: 'v2',
     async import(specifier: string) {
@@ -106,8 +109,7 @@ async function boot(): Promise<Context> {
       return module
     },
   } as unknown as NonNullable<typeof context.loader.internal>
-  // zod must be resolvable from the fixture packages; link the workspace copy.
-  await mkdir(join(root as string, 'node_modules'), { recursive: true })
+  context.loader.root.ctx.baseUrl = runtimeBaseUrl
   return context
 }
 
@@ -225,6 +227,30 @@ describe('typert loader', () => {
     await ctx.loader.await()
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(ctx.typert.get('@fixture/with-typert#Thing')).toBeDefined()
+  })
+
+  it('resolves mounted Typert packages from the loader root in a closed packaged runtime', LOADER_TEST_TIMEOUT, async () => {
+    const runtimeRoot = await mkdtemp(join(tmpdir(), 'dsh-typert-runtime-'))
+    const profileRoot = await mkdtemp(join(tmpdir(), 'dsh-typert-profile-'))
+    try {
+      await linkZod(runtimeRoot)
+      await writePackage(runtimeRoot, '@fixture/closed-runtime', {
+        typertSource: typertSource('@fixture/closed-runtime', 'Closed'),
+      })
+      const ctx = await boot(
+        pathToFileURL(join(profileRoot, 'cordis.yml')).href,
+        pathToFileURL(join(runtimeRoot, 'entry.js')).href,
+      )
+      await ctx.loader.create({ name: '@fixture/closed-runtime' })
+      await ctx.loader.await()
+
+      await mountTypertLoader(ctx)
+
+      expect(ctx.typert.get('@fixture/closed-runtime#Closed')).toBeDefined()
+    } finally {
+      await rm(runtimeRoot, { recursive: true, force: true })
+      await rm(profileRoot, { recursive: true, force: true })
+    }
   })
 
   it('follows entries mounted after activation', LOADER_TEST_TIMEOUT, async () => {

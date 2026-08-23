@@ -14,7 +14,7 @@ DeepSeek Harness 已有一个由 Node 进程托管的 Web 应用，但没有原�
 
 桌面应用由 Tauri 壳和 Node sidecar 组成。Tauri 负责窗口创建、导航、外链和进程生命周期。sidecar 是现有 profile 运行时通过 `@yao-pkg/pkg --sea` 打包后的可执行文件，提供动态的回环 HTTP 服务器。壳只在收到 NDJSON `ready` 事件后导航到 sidecar URL；`fatal` 和 `shutdown` 共同完成控制协议。Tauri 以 workspace 目录作为当前目录启动 sidecar，并把 sidecar 的 stdout/stderr 写入应用日志目录。
 
-sidecar 运行 `desktop` profile：`@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-web-app` 和 `@deepseek-ai/dsh-desktop-app`。桌面 bundle 将 webserver 固定在 `127.0.0.1`，关闭浏览器打开行为，并把 Web 界面提示替换为原生壳界面提示。profile 和 home 层的 `cordis.patch.yml` 保留在用户磁盘上并支持热重载。相对本地插件路径继续从 profile 配置目录解析；裸包名从已打包 sidecar 的 `node_modules` 树解析。桌面应用运行时不会执行 `pnpm`，也不会安装包。
+sidecar 运行 `desktop` profile：`@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-web-app` 和 `@deepseek-ai/dsh-desktop-app`。桌面 bundle 将 webserver 固定在 `127.0.0.1`，关闭浏览器打开行为，并把 Web 界面提示替换为原生壳界面提示。profile 和 home 层的 `cordis.patch.yml` 保留在用户磁盘上并支持热重载。相对本地插件路径继续从 profile 配置目录解析；裸包名从已打包 sidecar 的 `node_modules` 树解析。`client-modules` 与 `typert-loader` 对裸包使用 Loader root context 作为 manifest 解析锚点，对相对 specifier 使用 config-tree context。桌面应用运行时不会执行 `pnpm`，也不会安装包。
 
 ### 传输认证
 
@@ -26,7 +26,7 @@ sidecar 运行 `desktop` profile：`@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-w
 
 ## Testing
 
-Host 与浏览器 connection 测试覆盖 Bearer 解析、常量时间比较、WebSocket 子协议解析和客户端 token 附加。runtime 测试覆盖桌面 bundle 与控制协议。已构建的 macOS sidecar 冒烟使用 43 字符 token 启动，报告 `ready`，接受带认证的 HTTP 与 WebSocket 连接，并在 `shutdown` 后以 0 退出。Tauri `.app` 构建能启动托管状态，在应用日志中收到 sidecar 的 `ready` 事件，并在关闭时不写 stderr。
+Host 与浏览器 connection 测试覆盖 Bearer 解析、常量时间比较、WebSocket 子协议解析和客户端 token 附加。runtime 测试覆盖桌面 bundle 与控制协议。两个 manifest 扫描器的回归测试将可解析的运行时根目录与空的 profile 根目录并置，验证裸包可以组合或注册。已构建的 macOS sidecar 冒烟使用 43 字符 token 启动，报告 `ready`，接受带认证的 HTTP 与 WebSocket 连接，并在 `shutdown` 后以 0 退出；其 HTML 断言要求非空 `__DSH_BOOT__` graph 与 modules/runtime parser preload。Tauri `.app` 构建能启动托管状态，在应用日志中收到 sidecar 的 `ready` 事件，并在关闭时不写 stderr。
 
 ## Alternatives considered
 

@@ -8,6 +8,10 @@
  * injection table, and provides the `clientModuleHost` service (the HMR node
  * half's registration/notification face).
  *
+ * Package-manifest resolution has two anchors: relative plugin specifiers
+ * resolve beside the config tree, while bare package names resolve from the
+ * Loader root (the installed host in a closed packaged runtime).
+ *
  * Scanning is incremental per package — there is no full-rescan code path.
  * Every cordis `internal/plugin` emission (fiber construction/disposal) marks
  * the fiber's entry name dirty; a microtask flush reconciles each dirty name
@@ -300,15 +304,22 @@ export class ClientModuleRegistry extends Service {
    */
   constructor(ctx: Context) {
     super(ctx, 'clientModules')
-    // Resolution anchor: the config tree's baseUrl (the cordis.yml directory,
-    // whose package declares every composed plugin as a dependency). The
-    // modules package's own URL would miss sibling packages under pnpm's
-    // isolated node_modules.
+    // Relative entries belong to the user's config tree; bare entries belong
+    // to the installed-host runtime that owns the complete in-box plugin set.
     if (ctx.baseUrl === undefined) {
       throw new Error('client-modules: ctx.baseUrl is unset — the node half needs the config-tree anchor to resolve plugin packages')
     }
-    const require = createRequire(ctx.baseUrl)
-    this.resolvePkgJson = spec => require.resolve(`${spec}/package.json`)
+    const configRequire = createRequire(ctx.baseUrl)
+    const loaderBaseUrl = ctx.loader.root.ctx.baseUrl
+    if (loaderBaseUrl === undefined) {
+      throw new Error('client-modules: loader root ctx.baseUrl is unset — bare package manifests need the installed-host anchor')
+    }
+    const loaderRequire = createRequire(loaderBaseUrl)
+    this.resolvePkgJson = spec => (
+      spec.startsWith('.') || spec.startsWith('cordis:')
+        ? configRequire
+        : loaderRequire
+    ).resolve(`${spec}/package.json`)
 
     // Subscribe before seeding so a fiber arriving mid-activation lands in the
     // same dirty set (Set idempotence makes the overlap harmless). An entry-less

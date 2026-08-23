@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-23-tauri-desktop-runtime.md
-2026-08-23-tauri-desktop-runtime.md: ce50ec12f6ef43c9a2dca61ed45fe2fcd797816b
-2026-08-23-tauri-desktop-runtime.zh.md: 65a755c3a1df1cca343e41ae81f0127e3f278dc1
+2026-08-23-tauri-desktop-runtime.md: 26c37a8c795dce41127c2f321cd6c9d0cf03808b
+2026-08-23-tauri-desktop-runtime.zh.md: 4d62b6585406173baf89d43f07147a20feaacb46
