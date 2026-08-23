@@ -1,4 +1,5 @@
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import * as fsPromises from 'node:fs/promises'
+const { mkdtemp, mkdir, writeFile } = fsPromises
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -129,6 +130,18 @@ describe('preset discovery', () => {
     await writeFile(join(root, 'stray.yml'), '- id: x\n')
     await mkdir(join(root, 'real'))
     await writeFile(join(root, 'real', COMPOSITION_FILE), '[]\n')
+
+    const found = await scanRoot({ path: root, trust: 'user' })
+
+    expect(found.map(preset => preset.id)).toEqual(['real'])
+  })
+
+  it('reads string entries returned by pkg-compatible virtual filesystems', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-presets-pkg-readdir-'))
+    await mkdir(join(root, 'real'))
+    await writeFile(join(root, 'real', COMPOSITION_FILE), '[]\n')
+    await writeFile(join(root, 'stray.yml'), '- id: x\n')
+    vi.spyOn(fsPromises, 'readdir').mockResolvedValueOnce(['real', 'stray.yml'] as never)
 
     const found = await scanRoot({ path: root, trust: 'user' })
 

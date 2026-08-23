@@ -12,13 +12,15 @@ import {
   cp,
   lstat,
   mkdir,
+  mkdtemp,
   readFile,
   readdir,
   realpath,
   rm,
   writeFile,
 } from 'node:fs/promises'
-import { basename, dirname, join, resolve, sep } from 'node:path'
+import { tmpdir } from 'node:os'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { parseArgs } from 'node:util'
 
 const root = resolve(import.meta.dirname, '..')
@@ -130,16 +132,71 @@ class DesktopSidecarBuild {
     }
     if (this.cli.dryRun) console.log(`build-desktop-sidecar: [dry-run] rm -rf ${this.staging}`)
     else await rm(this.staging, { recursive: true, force: true })
-    await this.run('deploy', 'pnpm', [
-      '--filter', DEPLOY_ROOT_PACKAGE, 'deploy', '--legacy', '--prod',
-      '--config.node-linker=hoisted',
-      '--config.auto-install-peers=true',
-      '--config.link-workspace-packages=true',
-      '--ignore-scripts',
-      this.staging,
-    ])
-    await this.restoreWorkspaceClosure()
-    await this.materializeStagedLinks()
+    const deployWorkspace = this.cli.dryRun
+      ? join(tmpdir(), 'dsh-desktop-deploy-dry-run')
+      : await mkdtemp(join(tmpdir(), 'dsh-desktop-deploy-'))
+    try {
+      if (this.cli.dryRun) {
+        console.log('build-desktop-sidecar: [dry-run] copy repository source into a temporary workspace')
+      } else {
+        await cp(root, deployWorkspace, {
+          recursive: true,
+          dereference: true,
+          filter: source => this.shouldCopyToDeployWorkspace(source),
+        })
+      }
+      // Legacy pnpm deploy does not forward --ignore-scripts to the workspace
+      // root lifecycle. Run from a disposable workspace so production install
+      // cannot rewrite the checked-out node_modules state.
+      await this.run('deploy', 'pnpm', [
+        '--filter', DEPLOY_ROOT_PACKAGE, 'deploy', '--legacy', '--prod',
+        '--config.node-linker=hoisted',
+        '--config.auto-install-peers=true',
+        '--config.link-workspace-packages=true',
+        '--ignore-scripts',
+        this.staging,
+      ], {
+        cwd: deployWorkspace,
+        env: { npm_config_ignore_scripts: 'true' },
+      })
+      await this.restoreWorkspaceClosure()
+      await this.materializeStagedLinks()
+    } finally {
+      if (!this.cli.dryRun) {
+        await rm(deployWorkspace, { recursive: true, force: true })
+      }
+    }
+  }
+
+  /**
+   * Select the source needed by pnpm deploy. Generated desktop bundles and
+   * dependency trees are the large or mutable trees that must not leak into
+   * the disposable workspace.
+   */
+  private shouldCopyToDeployWorkspace(source: string): boolean {
+    const sourcePath = relative(root, source)
+    if (sourcePath === '') return true
+    const segments = sourcePath.split(sep)
+    if (
+      segments.includes('node_modules')
+      || segments.includes('.git')
+      || segments.includes('.sidecar-runtime')
+      || segments.includes('dist-desktop')
+      || segments.includes('.dsh-build')
+    ) {
+      return false
+    }
+    const name = basename(sourcePath)
+    if (name === '.DS_Store' || name === '.idea' || name === '.env' || name.startsWith('.env.')) {
+      return false
+    }
+    const tauriBuildRoot = join('apps', 'desktop', 'src-tauri')
+    return !(
+      sourcePath === join(tauriBuildRoot, 'target')
+      || sourcePath.startsWith(join(tauriBuildRoot, 'target') + sep)
+      || sourcePath === join(tauriBuildRoot, 'binaries')
+      || sourcePath.startsWith(join(tauriBuildRoot, 'binaries') + sep)
+    )
   }
 
   async injectPkgConfig(): Promise<void> {
@@ -394,7 +451,15 @@ class DesktopSidecarBuild {
     return undefined
   }
 
-  private async run(label: string, command: string, args: string[]): Promise<void> {
+  private async run(
+    label: string,
+    command: string,
+    args: string[],
+    options: {
+      cwd?: string
+      env?: NodeJS.ProcessEnv
+    } = {},
+  ): Promise<void> {
     const printable = formatCommand(command, args)
     if (this.cli.dryRun) {
       console.log(`build-desktop-sidecar: [dry-run] ${printable}`)
@@ -403,9 +468,9 @@ class DesktopSidecarBuild {
     console.log(`build-desktop-sidecar: ${label}: ${printable}`)
     await new Promise<void>((resolvePromise, reject) => {
       const child = spawn(command, args, {
-        cwd: root,
+        cwd: options.cwd ?? root,
         stdio: 'inherit',
-        env: { ...process.env, CI: 'true' },
+        env: { ...process.env, CI: 'true', ...options.env },
       })
       child.once('error', (error) => {
         reject(new Error(`build-desktop-sidecar: ${label} failed to spawn: ${error.message} (${printable})`))

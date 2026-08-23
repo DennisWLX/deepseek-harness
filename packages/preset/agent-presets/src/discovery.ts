@@ -14,7 +14,7 @@
  * @module @deepseek-ai/dsh-agent-presets/discovery
  */
 
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { lstat, readdir, readFile, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
@@ -106,6 +106,19 @@ async function compositionProblem(path: string): Promise<string | undefined> {
 }
 
 /**
+ * Whether `path` names an existing directory.
+ * @param path - absolute path to test.
+ * @returns true when the path resolves to a directory.
+ */
+async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await lstat(path)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/**
  * Whether `path` names an existing regular file.
  * @param path - absolute path to test.
  * @returns true when the path resolves to a file.
@@ -140,15 +153,16 @@ export async function scanRoot(root: PresetRoot): Promise<AgentPreset[]> {
   const dir = resolve(expandHomePath(root.path))
   let children
   try {
-    children = await readdir(dir, { withFileTypes: true })
+    children = await readdir(dir)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
     throw new Error(`agent-presets: cannot read preset root ${dir}: ${String(error)}`, { cause: error })
   }
   const found: AgentPreset[] = []
-  for (const child of children) {
-    if (!child.isDirectory() || !PRESET_ID.test(child.name)) continue
-    const directory = join(dir, child.name)
+  for (const name of children) {
+    if (!PRESET_ID.test(name)) continue
+    const directory = join(dir, name)
+    if (!await isDirectory(directory)) continue
     const path = join(directory, COMPOSITION_FILE)
     const broken = await isFile(path)
       ? await compositionProblem(path)
@@ -157,7 +171,7 @@ export async function scanRoot(root: PresetRoot): Promise<AgentPreset[]> {
     // still mounts, it just shows its id.
     const metadata = await readPresetMetadata(directory)
     found.push({
-      id: child.name, trust: root.trust, path, ...metadata,
+      id: name, trust: root.trust, path, ...metadata,
       ...broken === undefined ? {} : { broken },
     })
   }

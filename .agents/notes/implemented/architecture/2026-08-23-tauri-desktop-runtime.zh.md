@@ -24,6 +24,10 @@ sidecar 运行 `desktop` profile：`@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-w
 
 `scripts/build-desktop-sidecar.ts` 在 `apps/desktop/.sidecar-runtime` 下物化生产 workspace 闭包，为每个 macOS 架构生成一个 SEA 可执行文件，并将其复制到 Tauri external-bin 目录。暂存步骤同时复制 `node-pty` 的 spawn helper 和匹配目标架构的 ripgrep sidecar。打包树包含全部 JavaScript、包 manifest、原生 `.node` 文件，以及 Web 应用图片附件路径所需的 macOS libvips `.dylib`。Tauri 配置把 sidecar 放进应用 bundle，同时保留平台扩展点；macOS 是首个发布目标。
 
+部署前，builder 会把 workspace 源码复制到临时目录，并在该目录中执行跳过生命周期脚本的 legacy 生产 deploy。这样可以避免生产安装改写已检出的 `node_modules`；临时 workspace 会在 staged links 物化完成后删除。
+
+部署前，desktop profile resolver 还会追加随附的 `@deepseek-ai/dsh` 预设根目录；preset discovery 使用可移植的目录检查来兼容 pkg 的虚拟文件系统。
+
 ## Testing
 
 Host 与浏览器 connection 测试覆盖 Bearer 解析、常量时间比较、WebSocket 子协议解析和客户端 token 附加。runtime 测试覆盖桌面 bundle 与控制协议。两个 manifest 扫描器的回归测试将可解析的运行时根目录与空的 profile 根目录并置，验证裸包可以组合或注册。已构建的 macOS sidecar 冒烟使用 43 字符 token 启动，报告 `ready`，接受带认证的 HTTP 与 WebSocket 连接，并在 `shutdown` 后以 0 退出；其 HTML 断言要求非空 `__DSH_BOOT__` graph 与 modules/runtime parser preload。Tauri `.app` 构建能启动托管状态，在应用日志中收到 sidecar 的 `ready` 事件，并在关闭时不写 stderr。

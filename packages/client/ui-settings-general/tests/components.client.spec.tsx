@@ -6,6 +6,7 @@ import type { GeneralSectionComponentProps } from '../src/client/GeneralSection.
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.tsx'
 import type { TriggerContentProps } from '../src/client/chrome.tsx'
+import { DesktopDevtoolsAction } from '../src/client/DesktopDevtoolsAction.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { SettingsDocumentStore } from '../src/client/settings-document-store.ts'
@@ -17,7 +18,10 @@ function derivedDocumentStore(api: object) {
 }
 import { en } from '../src/client/locales.ts'
 
-afterEach(cleanup)
+afterEach(() => {
+  delete (globalThis as Record<string, unknown>).__DSH_DESKTOP_OPEN_DEVTOOLS__
+  cleanup()
+})
 
 // The seat's key domain is settings ∪ common; the stub answers from the
 // package dictionary and falls back to the key like the real chain.
@@ -62,6 +66,44 @@ describe('GeneralSection', () => {
     const { renderSlot } = mount()
     expect(renderSlot).toHaveBeenCalledWith('settings.general.item', {})
     expect(screen.getByTestId('slot-settings.general.item')).toBeTruthy()
+  })
+})
+
+describe('DesktopDevtoolsAction', () => {
+  function renderRow(opener?: () => unknown) {
+    if (opener === undefined) {
+      delete (globalThis as Record<string, unknown>).__DSH_DESKTOP_OPEN_DEVTOOLS__
+    } else {
+      ;(globalThis as Record<string, unknown>).__DSH_DESKTOP_OPEN_DEVTOOLS__ = opener
+    }
+    return render(<DesktopDevtoolsAction {...kit} t={t} />)
+  }
+
+  it('renders only when the Tauri shell bridge is installed', () => {
+    const first = renderRow()
+    expect(first.container.children).toHaveLength(0)
+    first.unmount()
+
+    renderRow(vi.fn(() => Promise.resolve()))
+    expect(screen.getByText('Developer tools')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open' })).toBeTruthy()
+  })
+
+  it('invokes the desktop bridge from the settings row', async () => {
+    const opener = vi.fn(() => Promise.resolve())
+    renderRow(opener)
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    await waitFor(() => { expect(opener).toHaveBeenCalledOnce() })
+  })
+
+  it('reports an invoke failure and keeps the action available', async () => {
+    const opener = vi.fn(() => Promise.reject(new Error('blocked')))
+    renderRow(opener)
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect((await screen.findByRole('alert')).textContent).toBe('Could not open developer tools')
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Open' }).disabled).toBe(false)
+    })
   })
 })
 

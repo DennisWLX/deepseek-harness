@@ -19,6 +19,7 @@ const SIDECAR_NAME: &str = "dsh-desktop-runtime";
 const MAIN_WINDOW: &str = "main";
 const TOKEN_LENGTH_BYTES: usize = 32;
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
+const OPEN_DEVTOOLS_COMMAND: &str = "open_devtools";
 
 #[derive(Default)]
 struct DesktopRuntime {
@@ -82,7 +83,7 @@ fn loader_script(token: &str, log_path: &Path) -> String {
     let log_json =
         serde_json::to_string(&log_path.to_string_lossy()).expect("path JSON cannot fail");
     format!(
-    "window.__DSH_DESKTOP_ACCESS_TOKEN__={token_json};window.__DSH_DESKTOP_LOADER__={{logPath:{log_json}}};"
+    "window.__DSH_DESKTOP_ACCESS_TOKEN__={token_json};window.__DSH_DESKTOP_LOADER__={{logPath:{log_json}}};window.__DSH_DESKTOP_OPEN_DEVTOOLS__=()=>window.__TAURI_INTERNALS__.invoke('{OPEN_DEVTOOLS_COMMAND}');"
   )
 }
 
@@ -133,6 +134,12 @@ async fn show_log_path(app: AppHandle, state: State<'_, DesktopState>) -> Result
     Ok(path.to_string_lossy().into_owned())
 }
 
+/** Open the invoking webview's platform inspector. */
+#[tauri::command]
+fn open_devtools(webview: tauri::WebviewWindow) {
+    webview.open_devtools();
+}
+
 fn is_external_url(url: &Url) -> bool {
     url.scheme() == "http" || url.scheme() == "https"
 }
@@ -149,7 +156,7 @@ pub fn run() {
             }
         }))
         .manage(DesktopState::default())
-        .invoke_handler(tauri::generate_handler![show_log_path])
+        .invoke_handler(tauri::generate_handler![show_log_path, open_devtools])
         .setup(|app| {
             let app_handle = app.handle().clone();
             let token = token();
@@ -169,6 +176,7 @@ pub fn run() {
                     .title("DeepSeek Harness")
                     .inner_size(1200.0, 800.0)
                     .min_inner_size(900.0, 600.0)
+                    .devtools(true)
                     .initialization_script(&loader_script(&token, &log_path))
                     .on_navigation(move |url| {
                         if url.scheme() == "tauri" {

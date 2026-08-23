@@ -555,6 +555,30 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the open_devtools command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-open-devtools",
+          "markdownDescription": "Enables the open_devtools command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the show_log_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-show-log-path",
+          "markdownDescription": "Enables the show_log_path command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the open_devtools command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-open-devtools",
+          "markdownDescription": "Denies the open_devtools command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the show_log_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-show-log-path",
+          "markdownDescription": "Denies the show_log_path command without any pre-configured scope."
+        },
+        {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",
           "type": "string",
           "const": "core:default",

@@ -8,6 +8,9 @@ export const zh = {
   'openDocument': '打开配置文件',
   'openDocument.error': '无法打开配置文件',
   'general.nav': '通用设置',
+  'devtools.title': '开发者工具',
+  'devtools.open': '打开',
+  'devtools.error': '无法打开开发者工具',
 } satisfies Record<string, string>
 
 /** The settings namespace key union. */
@@ -21,4 +24,7 @@ export const en = {
   'openDocument': 'Open configuration file',
   'openDocument.error': 'Could not open configuration file',
   'general.nav': 'General',
+  'devtools.title': 'Developer tools',
+  'devtools.open': 'Open',
+  'devtools.error': 'Could not open developer tools',
 } satisfies Record<SettingsKey, string>

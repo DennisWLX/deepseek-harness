@@ -21,6 +21,7 @@ import type {
 } from './shell-contract.ts'
 import { SettingsRoot } from './SettingsRoot.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
+import { DesktopDevtoolsAction } from './DesktopDevtoolsAction.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
@@ -33,6 +34,7 @@ export type {
 export type {
   GeneralSectionComponentProps,
 } from './GeneralSection.tsx'
+export type { DesktopDevtoolsActionProps } from './DesktopDevtoolsAction.tsx'
 export type { SettingsDocumentActionInjected, SettingsDocumentActionProps } from './SettingsDocumentAction.tsx'
 export type { SettingsDocumentState } from './settings-document-store.ts'
 export { SettingsDocumentStore } from './settings-document-store.ts'
@@ -166,6 +168,12 @@ export function apply(ctx: ClientContext): void {
   }
   ctx.slots.inject('settings.close', () =>
     ctx.slots.register({ name: 'settings.close', locale: NS }, CloseLabel))
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'desktop-devtools',
+    order: 30,
+    locale: NS,
+  }, DesktopDevtoolsAction))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'general',

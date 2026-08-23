@@ -24,6 +24,10 @@ Each launch generates a 32-byte random token encoded as 43 base64url characters.
 
 `scripts/build-desktop-sidecar.ts` materializes the production workspace closure under `apps/desktop/.sidecar-runtime`, emits one SEA executable per macOS architecture, and copies the executable into the Tauri external-bin directory. The staging step also copies `node-pty`'s spawn helper and the target-native ripgrep sidecar beside the executable. The packaged tree includes all JavaScript, package manifests, native `.node` files, and the macOS libvips `.dylib` needed by the Web app's image attachment path. The Tauri configuration keeps the sidecar in the application bundle and reserves platform extension points while macOS is the first shipped target.
 
+Before deploy, the builder copies the workspace source into a temporary directory and runs legacy production deploy there with lifecycle scripts suppressed. This prevents the production install from rewriting the checked-out `node_modules`; the temporary workspace is removed after staged links are materialized.
+
+Before deploy, the desktop profile resolver also appends the shipped `@deepseek-ai/dsh` preset root, and preset discovery uses portable directory checks for pkg's virtual filesystem.
+
 ## Testing
 
 Host and browser connection tests cover bearer parsing, constant-time comparison, WebSocket subprotocol parsing, and the client token attachment. Runtime tests cover the desktop bundle and control protocol. Regression tests for both manifest scanners place a resolvable runtime root beside an empty profile root and verify that bare packages compose or register. A built macOS sidecar smoke starts with a 43-character token, reports `ready`, accepts authenticated HTTP and WebSocket connections, and exits 0 after `shutdown`. Its HTML assertion requires a nonempty `__DSH_BOOT__` graph and the modules/runtime parser preloads. The Tauri `.app` build launches the managed state, receives the sidecar `ready` event in its application log, and closes without stderr.

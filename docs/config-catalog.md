@@ -3007,7 +3007,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/typert/loader/src/index.ts:47`](../packages/typert/loader/src/index.ts)
+Source: [`packages/typert/loader/src/index.ts:51`](../packages/typert/loader/src/index.ts)
 
 <a id="deepseek-aidsh-user-approval"></a>
 

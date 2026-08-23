@@ -7,11 +7,10 @@ The Tauri desktop application for DeepSeek Harness. The repository code here is 
 ## Build
 
 ```sh
-pnpm run build
-pnpm exec tsx scripts/build-desktop-sidecar.ts --targets=node24-macos-x64
+./build-desktop.sh
 ```
 
-The sidecar builder emits `apps/desktop/dist-desktop/dsh-desktop-runtime-macos-<arch>` and copies it, the macOS spawn helper, and the target-native ripgrep binary into `apps/desktop/src-tauri/binaries/`. The Tauri configuration bundles those artifacts and requires macOS 13.5 or newer.
+The executable build script detects the macOS architecture, puts the active Rust toolchain on `PATH`, builds the Node sidecar for that architecture, and builds the `.app`. Use `./build-desktop.sh --dmg` to also build a DMG, `./build-desktop.sh --skip-sidecar` for Rust-only changes, and `./build-desktop.sh --help` for all options. The sidecar builder emits `apps/desktop/dist-desktop/dsh-desktop-runtime-macos-<arch>` and copies it, the macOS spawn helper, and the target-native ripgrep binary into `apps/desktop/src-tauri/binaries/`. The Tauri configuration bundles those artifacts and requires macOS 13.5 or newer.
 
 ```sh
 PATH="/usr/local/opt/rustup/bin:$PATH" cargo check
@@ -28,6 +27,7 @@ The default workspace is `$HOME/DeepSeek Harness Workspaces/Default`. User profi
 
 ## Layout
 
+- `build-desktop.sh` is the executable macOS packaging entry.
 - `src/` is the sidecar entry and protocol.
 - `src-tauri/` is the Rust native shell, window, process, and navigation code.
 - `local-shared/` is the Tauri loading/error page.
@@ -36,3 +36,5 @@ The default workspace is `$HOME/DeepSeek Harness Workspaces/Default`. User profi
 ## Security
 
 The sidecar binds only to `127.0.0.1` on a dynamic port. HTTP and WebSocket routes require the launch token; Tauri permits only its own shell pages and the current loopback origin, and opens external HTTP(S) URLs with the system browser.
+
+The shell enables Tauri's `devtools` feature, registers an `open_devtools` command, and injects `window.__DSH_DESKTOP_OPEN_DEVTOOLS__` for the General settings row. A dedicated remote capability grants only that command to the `main` window from `http://127.0.0.1:*`; `show_log_path` remains a local capability.
