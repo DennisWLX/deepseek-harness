@@ -13,9 +13,6 @@
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
-  "bin": {
-    "dsh-desktop-runtime": "lib/bin.js"
-  },
   "scripts": {
     "tauri:build": "tauri build --bundles app",
     "tauri:check": "tauri info"

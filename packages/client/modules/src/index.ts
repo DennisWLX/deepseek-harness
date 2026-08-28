@@ -233,6 +233,14 @@ function clientExportOf(pkgName: string, exportsField: unknown): string | undefi
   throw new Error(`client-modules: ${pkgName} exports["./client"] must be a string or an object with a string default`)
 }
 
+/** Resolve a browser bundle from an ordinary export or a packaged-runtime fallback target. */
+function clientBundlePath(packageDir: string, clientRel: string, dsh: unknown): string {
+  const fallbackTarget = (dsh as {
+    moduleFallback?: { targets?: { './client'?: unknown } }
+  } | null | undefined)?.moduleFallback?.targets?.['./client']
+  return typeof fallbackTarget === 'string' ? fileURLToPath(fallbackTarget) : join(packageDir, clientRel)
+}
+
 /** sha1 content hash shortened to 12 hex chars (combo / graph / rebuilt-artifact rev). */
 function shortHash(input: string | Buffer): string {
   return createHash('sha1').update(input).digest('hex').slice(0, HASH_REVISION_LENGTH)
@@ -762,7 +770,7 @@ export class ClientModuleRegistry extends Service {
       throw new Error(`client-modules: ${packageName} declares dsh.client but exports no "./client" bundle`)
     }
     const meta: PkgMeta = {
-      clientPath: join(dirname(pkgPath), clientRel),
+      clientPath: clientBundlePath(dirname(pkgPath), clientRel, dsh),
       ...(decl.inject !== undefined ? { inject: decl.inject } : {}),
       external: decl.external ?? [],
       immediately: decl.immediately === true,

@@ -23,7 +23,7 @@ Run `pnpm --filter @deepseek-ai/dsh-desktop-runtime run tauri:build` with the sa
 
 The sidecar writes one JSON object per stdout line: `{type:'ready',url}`, `{type:'fatal',message}`, or `{type:'shutdown'}`. The shell writes `{type:'shutdown'}` to its stdin to request graceful disposal. The token is a 43-character base64url value generated from 32 random bytes; HTTP uses `Authorization: Bearer <token>`, and WebSocket upgrades use the `dsh-desktop-token.<token>` subprotocol. The token is injected into the page global, never served as HTML content.
 
-The default workspace is `$HOME/DeepSeek Harness Workspaces/Default`. User profile and home `cordis.patch.yml` files under `$DSH_HOME` remain editable; relative local plugin paths resolve from the profile directory.
+The default workspace is `$HOME/DeepSeek Harness Workspaces/Default`. Before mounting the profile tree, the sidecar refreshes its installation-specific module fallbacks under `$DSH_HOME`; user profile and home `cordis.patch.yml` files remain editable, and relative local plugin paths resolve from the profile directory.
 
 ## Layout
 

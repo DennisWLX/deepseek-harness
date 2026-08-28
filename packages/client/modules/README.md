@@ -33,7 +33,7 @@ A browser plugin package declares `dsh.client` in its `package.json` with `platf
 
 ### What the browser loads
 
-The application combo scripts register plugin factories once during boot; module bodies remain lazy and run only at first import or materialization. Rows that share a combo URL share one in-flight script task. HMR switches one changed row to its revisioned one-resource combo URL. `<id>/client` and the bare id resolve to the same exports, because a plugin bundle is its package's client half.
+The application combo scripts register plugin factories once during boot; module bodies remain lazy and run only at first import or materialization. Rows that share a combo URL share one in-flight script task. HMR switches one changed row to its revisioned one-resource combo URL. `<id>/client` and the bare id resolve to the same exports, because a plugin bundle is its package's client half. In a packaged runtime, the host reads a fallback proxy's `./client` target so the browser receives the compiled factory bundle rather than the proxy's ESM forwarding file.
 
 ### Sharing modules
 

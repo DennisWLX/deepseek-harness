@@ -240,6 +240,35 @@ describe('HTML bootstrap facade', () => {
 })
 
 describe('client bundle activation', () => {
+  it('serves a packed fallback proxy client target instead of its ESM forwarding source', async () => {
+    const packageName = '@fixture/fallback-proxy'
+    const proxyClientPath = writePackage(packageName)
+    const packageRoot = dirname(dirname(proxyClientPath))
+    const targetClientPath = join(root!, 'snapshot', 'fallback-proxy', 'client.js')
+    mkdirSync(dirname(proxyClientPath), { recursive: true })
+    mkdirSync(dirname(targetClientPath), { recursive: true })
+    writeFileSync(targetClientPath, 'window.__ModuleLoader__.load({ id: "@fixture/fallback-proxy" })\n')
+    writeFileSync(proxyClientPath, `export * from ${JSON.stringify(pathToFileURL(targetClientPath).href)}\n`)
+    writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({
+      name: packageName,
+      exports: { './client': './lib/client.js', './package.json': './package.json' },
+      dsh: {
+        client: { platform: 'web' },
+        moduleFallback: { targets: { './client': pathToFileURL(targetClientPath).href } },
+      },
+    }))
+
+    const { service, route } = constructWithRoute([packageName])
+
+    expect(service.clientPath(packageName)).toBe(targetClientPath)
+    const row = service.graph().entries[0]
+    if (row === undefined) throw new Error('client bundle graph row is missing')
+    const response = await routeRequest(route, row.url)
+    expect(response.status).toBe(200)
+    expect(response.body.toString('utf8')).toContain('window.__ModuleLoader__.load')
+    expect(response.body.toString('utf8')).not.toContain('export * from')
+  })
+
   it.each(['v1', 'v2'] as const)(
     'resolves %s package metadata from the owning entry tree',
     (version) => {

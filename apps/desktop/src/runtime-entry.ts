@@ -13,6 +13,7 @@ import { parseArgs } from 'node:util'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import {
   boot,
+  healProfilesModuleFallback,
   installFailLoud,
   loadLayeredEnv,
   loadOptionalPatches,
@@ -134,8 +135,9 @@ function telemetryPatch(hasRow: boolean): PatchOptions | undefined {
  * @param profileName - profile to boot.
  * @returns resolved profile and its immutable/live patch lists.
  */
-function composeProfile(profileName: string): ComposedProfile {
+export async function composeProfile(profileName: string): Promise<ComposedProfile> {
   const profile = loadProfile(RUNTIME_NAME, profileName, INSTALL_ANCHOR)
+  await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR, profile })
   const profilePatches = profile.patches
   const homePatches = loadOptionalPatches(RUNTIME_NAME, homePatchPath()) ?? []
   const bundlePatches = profile.layers.flatMap(layer => layer.patches)
@@ -198,7 +200,7 @@ export async function runDesktopRuntime(
 
   process.env[DESKTOP_ACCESS_TOKEN_ENV] = token
   const environment = loadLayeredEnv(RUNTIME_NAME, io.cwd ?? process.cwd())
-  const composed = composeProfile(profileName)
+  const composed = await composeProfile(profileName)
   const rootConfig = join(composed.profile.dir, 'cordis.yml')
   writeFileSync(rootConfig, PROFILE_ROOT_CONFIG)
 

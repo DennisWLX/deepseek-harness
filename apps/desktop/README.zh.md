@@ -23,7 +23,7 @@ PATH="/usr/local/opt/rustup/bin:$PATH" cargo fmt --check
 
 sidecar 在 stdout 每行写一个 JSON 对象：`{type:'ready',url}`、`{type:'fatal',message}` 或 `{type:'shutdown'}`。壳向 stdin 写 `{type:'shutdown'}` 请求优雅释放。token 由 32 个随机字节生成，编码为 43 个 base64url 字符；HTTP 使用 `Authorization: Bearer <token>`，WebSocket 升级使用 `dsh-desktop-token.<token>` 子协议。token 注入页面全局变量，不作为 HTML 内容输出。
 
-默认 workspace 是 `$HOME/DeepSeek Harness Workspaces/Default`。`$DSH_HOME` 下的用户 profile 和 home 级 `cordis.patch.yml` 文件仍可编辑；相对本地插件路径从 profile 目录解析。
+默认 workspace 是 `$HOME/DeepSeek Harness Workspaces/Default`。挂载 profile tree 前，sidecar 会刷新 `$DSH_HOME` 下与当前安装对应的模块回退；用户 profile 和 home 级 `cordis.patch.yml` 文件仍可编辑，相对本地插件路径从 profile 目录解析。
 
 ## 目录结构
 

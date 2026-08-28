@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 浏览器加载什么
 
-application combo 脚本在启动时注册插件 factory；模块主体仍保持惰性，只在首次 import 或物化时运行。共享 combo URL 的 row 共用一个进行中的脚本任务。HMR 会让一条发生变化的 row 改用带 revision 的单资源 combo URL。`<id>/client` 与裸 id 解析到同一组导出，因为插件 bundle 就是其包的客户端半侧。
+application combo 脚本在启动时注册插件 factory；模块主体仍保持惰性，只在首次 import 或物化时运行。共享 combo URL 的 row 共用一个进行中的脚本任务。HMR 会让一条发生变化的 row 改用带 revision 的单资源 combo URL。`<id>/client` 与裸 id 解析到同一组导出，因为插件 bundle 就是其包的客户端半侧。在打包运行时，宿主读取 fallback proxy 的 `./client` target，因此浏览器接收的是已编译的 factory bundle，而不是该 proxy 的 ESM 转发文件。
 
 ### 共享模块
 

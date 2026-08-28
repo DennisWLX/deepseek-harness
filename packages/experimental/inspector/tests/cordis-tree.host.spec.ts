@@ -243,7 +243,7 @@ describe('Cordis tree inspection', () => {
     const snapshot = collector.snapshot()
     const store = new CordisTreeStore({ maxNodes: 100, maxDisconnectedTrees: 1 })
     const first = source('client-a', 'generation-1')
-    store.replace(first, [{ sequence: 1, monotonicMs: 1, topic: 'cordis/tree', payload: asJson(snapshot) }])
+    store.replace(first, [{ sequence: 1, monotonicMs: 1, topic: '@deepseek-ai/cordis/tree', payload: asJson(snapshot) }])
 
     const object = snapshot.root
     expect(store.resolveObject(first, {
@@ -261,7 +261,7 @@ describe('Cordis tree inspection', () => {
     store.replace(reconnected, [{
       sequence: 1,
       monotonicMs: 2,
-      topic: 'cordis/tree',
+      topic: '@deepseek-ai/cordis/tree',
       payload: asJson({ ...snapshot, revision: snapshot.revision + 1 }),
     }])
     expect(store.snapshots()).toEqual([
@@ -270,7 +270,7 @@ describe('Cordis tree inspection', () => {
 
     store.close(reconnected, 'transport closed again')
     const other = source('client-b', 'generation-1')
-    store.replace(other, [{ sequence: 1, monotonicMs: 3, topic: 'cordis/tree', payload: asJson(snapshot) }])
+    store.replace(other, [{ sequence: 1, monotonicMs: 3, topic: '@deepseek-ai/cordis/tree', payload: asJson(snapshot) }])
     store.close(other, 'other transport closed')
     const retained = store.snapshots()
     expect(retained).toHaveLength(1)
@@ -304,7 +304,7 @@ describe('Cordis tree inspection', () => {
       truncated: false,
     }) as InspectorJsonValue
     const replace = (revision: number, children: unknown[]): void => {
-      store.append(host, [{ sequence: revision, monotonicMs: revision, topic: 'cordis/tree', payload: snapshot(revision, children) }])
+      store.append(host, [{ sequence: revision, monotonicMs: revision, topic: '@deepseek-ai/cordis/tree', payload: snapshot(revision, children) }])
     }
 
     replace(1, [fiber(1, 'fiber-1')])
