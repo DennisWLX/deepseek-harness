@@ -26,7 +26,7 @@ Each launch generates a 32-byte random token encoded as 43 base64url characters.
 
 Before deploy, the builder copies the workspace source into a temporary directory and runs legacy production deploy there with lifecycle scripts suppressed. This prevents the production install from rewriting the checked-out `node_modules`; the temporary workspace is removed after staged links are materialized.
 
-Before deploy, the desktop profile resolver also appends the shipped `@deepseek-ai/dsh` preset root, and preset discovery uses portable directory checks for pkg's virtual filesystem.
+`@deepseek-ai/dsh-agent-presets` ships the preset files in its package-local `presets/` directory and prepends that directory as its system root. Preset discovery uses portable directory checks for pkg's virtual filesystem.
 
 ## Testing
 

@@ -39,7 +39,6 @@ import {
   writeControlEvent,
   type ControlOutput,
 } from './protocol.ts'
-import { withDesktopPresetRoot } from './profile-composition.ts'
 
 /** Diagnostics prefix used by app-boot and the sidecar supervisor. */
 const RUNTIME_NAME = 'dsh-desktop-runtime'
@@ -146,19 +145,19 @@ function composeProfile(profileName: string): ComposedProfile {
     if (patch.id !== undefined) rows.add(patch.id)
   }
   const overlay = telemetryPatch(rows.has(TELEMETRY_ROW_ID))
-  const patches = withDesktopPresetRoot([
+  const patches = [
     ...basePatches,
     ...(overlay === undefined ? [] : [overlay]),
-  ])
+  ]
   return {
     profile,
     patches,
-    live: () => structuredClone(withDesktopPresetRoot([
+    live: () => structuredClone([
       ...bundlePatches,
       ...loadOptionalPatches(RUNTIME_NAME, profile.patchPath) ?? [],
       ...loadOptionalPatches(RUNTIME_NAME, homePatchPath()) ?? [],
       ...(overlay === undefined ? [] : [overlay]),
-    ])),
+    ]),
   }
 }
 

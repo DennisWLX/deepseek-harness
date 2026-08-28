@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-24-desktop-agent-presets-empty.md
-2026-08-24-desktop-agent-presets-empty.md: 9e28c01c7bfe2346db3e9ec4b6b7ad105bb55417
-2026-08-24-desktop-agent-presets-empty.zh.md: 47639c6a7d82cff990a7fb683390b42b0e0798d5
+2026-08-24-desktop-agent-presets-empty.md: 05beef91f2bbdbab1d3fa7eafa24ccbe91293bc0
+2026-08-24-desktop-agent-presets-empty.zh.md: 71518c1ad70eee623ac34173edc405790b7a9b3b

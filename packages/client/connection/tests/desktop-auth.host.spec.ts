@@ -4,12 +4,11 @@
  */
 
 import { EventEmitter } from 'node:events'
-import { PassThrough, Readable } from 'node:stream'
+import { Readable } from 'node:stream'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { ApiProxy } from '@deepseek-ai/dsh-host-apiproxy/api'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import type { WebRoute, WebServer, WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
+import type { WebRoute, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { isDesktopHttpAuthorized, isDesktopWebSocketAuthorized } from '../src/desktop-auth-host.ts'
 import {
   desktopAuthorizationValue,
@@ -18,7 +17,8 @@ import {
   parseDesktopWebSocketProtocol,
   readDesktopAccessToken,
 } from '../src/desktop-auth.ts'
-import { API_PATH, apply, MUX_EVENTS_PATH } from '../src/index.ts'
+import { API_PATH, apply, inject, type HostConnectionHandle } from '../src/index.ts'
+import { provideBrowserCredentials } from './browser-credentials.ts'
 
 const TOKEN = 'A'.repeat(43)
 const OTHER = 'B'.repeat(43)
@@ -61,14 +61,10 @@ describe('desktop auth parsing', () => {
   })
 })
 
-function fakeServer(routes: WebRoute[], upgrades: WebUpgradeRoute[]): Pick<WebServer, 'register' | 'registerUpgrade'> {
+function fakeServer(routes: WebRoute[]): Pick<WebServer, 'register'> {
   return {
     register(route) {
       routes.push(route)
-      return () => {}
-    },
-    registerUpgrade(route) {
-      upgrades.push(route)
       return () => {}
     },
   }
@@ -107,17 +103,21 @@ function response(): { response: ServerResponse; status: () => number | undefine
   }
 }
 
-async function mount(token?: string): Promise<{ routes: WebRoute[]; upgrades: WebUpgradeRoute[] }> {
+async function mount(token?: string): Promise<{
+  routes: WebRoute[]
+  connection: HostConnectionHandle
+}> {
   const ctx = new Context()
   const routes: WebRoute[] = []
-  const upgrades: WebUpgradeRoute[] = []
-  ctx.provide('webServer', fakeServer(routes, upgrades) as WebServer)
-  ctx.provide('apiProxy', {} as ApiProxy)
+  provideBrowserCredentials(ctx)
+  ctx.provide('webServer', fakeServer(routes) as WebServer)
   await ctx.plugin(
-    { apply, inject: ['webServer'] },
+    { apply, inject: [...inject] },
     token === undefined ? undefined : { accessToken: token },
   )
-  return { routes, upgrades }
+  const connection = ctx.get('connection')
+  if (connection === undefined) throw new Error('connection was not provided')
+  return { routes, connection }
 }
 
 describe('connection desktop HTTP fence', () => {
@@ -147,29 +147,37 @@ describe('connection desktop HTTP fence', () => {
     expect(accepted.status()).toBe(404)
   })
 
-  it('requires the configured subprotocol before a WebSocket upgrade', async () => {
-    const { upgrades } = await mount(TOKEN)
-    const denied = upgrades.find(route => route.path === MUX_EVENTS_PATH)
-    expect(denied).toBeDefined()
-    const output: Buffer[] = []
-    const socket = new PassThrough()
-    socket.on('data', (chunk: Buffer) => { output.push(chunk) })
-    await denied!.handler(request({
+  it('requires the configured subprotocol on Connection-owned WebSocket checks', async () => {
+    const { connection } = await mount(TOKEN)
+    const headers = {
       host: '127.0.0.1:3080',
       origin: 'http://127.0.0.1:3080',
-    }), socket, Buffer.alloc(0))
-    await new Promise<void>(resolve => socket.once('end', () => { resolve() }))
-    expect(Buffer.concat(output).toString()).toContain('HTTP/1.1 403 Forbidden')
+    }
+    expect(connection.requestUpgradeRejection(request(headers))).toBe(403)
+    expect(connection.requestUpgradeRejection(request({
+      ...headers,
+      'sec-websocket-protocol': desktopWebSocketProtocol(OTHER),
+    }))).toBe(403)
+    expect(connection.requestUpgradeRejection(request({
+      ...headers,
+      'sec-websocket-protocol': desktopWebSocketProtocol(TOKEN),
+    }))).toBeUndefined()
+  })
+
+  it('lets the Tauri shell load the index without the Web cookie exchange', async () => {
+    const { connection } = await mount(TOKEN)
+    const response = { writeHead() {}, end() {} }
+    expect(connection.authorizeIndex(request({ host: '127.0.0.1:3080' }), response)).toBe(true)
+    expect(connection.authenticatedUrl('http://127.0.0.1:3080')).toBe('http://127.0.0.1:3080')
   })
 
   it('fails the plugin load for a malformed configured token', async () => {
     const ctx = new Context()
     const routes: WebRoute[] = []
-    const upgrades: WebUpgradeRoute[] = []
-    ctx.provide('webServer', fakeServer(routes, upgrades) as WebServer)
-    await expect(ctx.plugin({ apply, inject: ['webServer'] }, { accessToken: 'short' }))
+    provideBrowserCredentials(ctx)
+    ctx.provide('webServer', fakeServer(routes) as WebServer)
+    await expect(ctx.plugin({ apply, inject: [...inject] }, { accessToken: 'short' }))
       .rejects.toThrow(/43-character base64url/)
     expect(routes).toHaveLength(0)
-    expect(upgrades).toHaveLength(0)
   })
 })

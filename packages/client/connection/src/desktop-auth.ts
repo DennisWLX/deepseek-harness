@@ -58,7 +58,7 @@ export function desktopAuthorizationValue(token: string): string {
  * @param value - raw authorization header.
  * @returns the bearer token, or `undefined` when the header is absent or does not match.
  */
-export function parseDesktopBearer(value: string | string[] | undefined): string | undefined {
+export function parseDesktopBearer(value: string | readonly string[] | undefined): string | undefined {
   if (typeof value !== 'string') return undefined
   const match = BEARER_PATTERN.exec(value)
   return match?.[1]
@@ -80,7 +80,7 @@ export function desktopWebSocketProtocol(token: string): string {
  * @returns the validated token, or `undefined` when absent or malformed.
  */
 export function parseDesktopWebSocketProtocol(
-  value: string | string[] | undefined,
+  value: string | readonly string[] | undefined,
 ): string | undefined {
   if (typeof value !== 'string') return undefined
   const protocols = value.split(',').map(part => part.trim()).filter(part => part !== '')

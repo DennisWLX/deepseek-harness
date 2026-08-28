@@ -6,6 +6,12 @@ import {
   parseDesktopWebSocketProtocol,
 } from './desktop-auth.ts'
 
+type TransportHeaders = Headers | Readonly<Record<string, string | readonly string[] | undefined>>
+
+function headerValue(headers: TransportHeaders, name: string): string | readonly string[] | undefined {
+  return headers instanceof Headers ? headers.get(name) ?? undefined : headers[name]
+}
+
 /**
  * Compare a submitted bearer token without leaking valid-token length through
  * ordinary string comparison.
@@ -14,10 +20,10 @@ import {
  * @returns true for one exact bearer match.
  */
 export function isDesktopHttpAuthorized(
-  headers: { authorization?: string | string[] | undefined },
+  headers: TransportHeaders,
   expected: string,
 ): boolean {
-  return secureTokenEqual(parseDesktopBearer(headers.authorization), expected)
+  return secureTokenEqual(parseDesktopBearer(headerValue(headers, 'authorization')), expected)
 }
 
 /**
@@ -27,10 +33,13 @@ export function isDesktopHttpAuthorized(
  * @returns true for one exact subprotocol match.
  */
 export function isDesktopWebSocketAuthorized(
-  headers: { 'sec-websocket-protocol'?: string | string[] | undefined },
+  headers: TransportHeaders,
   expected: string,
 ): boolean {
-  return secureTokenEqual(parseDesktopWebSocketProtocol(headers['sec-websocket-protocol']), expected)
+  return secureTokenEqual(
+    parseDesktopWebSocketProtocol(headerValue(headers, 'sec-websocket-protocol')),
+    expected,
+  )
 }
 
 /** Length-checked constant-time comparison. */

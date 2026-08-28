@@ -26,7 +26,7 @@ sidecar 运行 `desktop` profile：`@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-w
 
 部署前，builder 会把 workspace 源码复制到临时目录，并在该目录中执行跳过生命周期脚本的 legacy 生产 deploy。这样可以避免生产安装改写已检出的 `node_modules`；临时 workspace 会在 staged links 物化完成后删除。
 
-部署前，desktop profile resolver 还会追加随附的 `@deepseek-ai/dsh` 预设根目录；preset discovery 使用可移植的目录检查来兼容 pkg 的虚拟文件系统。
+`@deepseek-ai/dsh-agent-presets` 在包内的 `presets/` 目录中发布预设文件，并把该目录前置为 system root。preset discovery 使用可移植的目录检查来兼容 pkg 的虚拟文件系统。
 
 ## Testing
 
