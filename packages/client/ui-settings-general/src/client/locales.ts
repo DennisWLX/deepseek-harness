@@ -11,6 +11,12 @@ export const zh = {
   'devtools.title': '开发者工具',
   'devtools.open': '打开',
   'devtools.error': '无法打开开发者工具',
+  'connection.error': '连接异常',
+  'connection.retry': '立即重连',
+  'connection.connecting': '连接中',
+  'connection.connected': '连接成功',
+  'connection.reconnect': '连接异常，点击立即重连',
+  'connection.restart': '连接中，点击立即重连',
 } satisfies Record<string, string>
 
 /** The settings namespace key union. */
@@ -27,4 +33,10 @@ export const en = {
   'devtools.title': 'Developer tools',
   'devtools.open': 'Open',
   'devtools.error': 'Could not open developer tools',
+  'connection.error': 'Disconnected',
+  'connection.retry': 'Reconnect now',
+  'connection.connecting': 'Connecting',
+  'connection.connected': 'Connected',
+  'connection.reconnect': 'Disconnected, reconnect now',
+  'connection.restart': 'Connecting, restart now',
 } satisfies Record<SettingsKey, string>
